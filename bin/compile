@@ -35,6 +35,10 @@ if ! command -v gimme ; then
 fi
 
 eval "$(gimme 1.5.1)" 2>&1 | indent
+PATH="$GOROOT/bin:$PATH"
+
+go env | indent
+
 cd "$BUILD_DIR"
 
 if ! test -f $CACHE_DIR/.profile.d/homebin.sh ; then
