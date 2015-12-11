@@ -34,15 +34,13 @@ if ! command -v gimme ; then
   chmod +x "$CACHE_DIR/bin/gimme"
 fi
 
-if test -f "$ENV_DIR/GO_VERSION" ; then
-  GO_VERSION=$(cat $ENV_DIR/GO_VERSION)
-fi
-
 GO_IMPORT_PATH=main
 
-if test -f "$ENV_DIR/GO_IMPORT_PATH" ; then
-  GO_IMPORT_PATH=$(cat $ENV_DIR/GO_IMPORT_PATH)
-fi
+for var in GO_VERSION GO_IMPORT_PATH GO15VENDOREXPERIMENT ; do
+  if test -f "$ENV_DIR/$var" ; then
+    eval "$var='$(cat $ENV_DIR/$var)'"
+  fi
+done
 
 eval "$(HOME=$BUILD_DIR gimme ${GO_VERSION:-1.5.1})" 2>&1 | indent
 export GOROOT="$BUILD_DIR/.gimme/versions/go${GO_VERSION:-1.5.1}.linux.amd64"
