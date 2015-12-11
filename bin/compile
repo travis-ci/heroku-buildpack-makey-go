@@ -57,7 +57,7 @@ if ! test -e "$BUILD_DIR/gopath/src/$GO_IMPORT_PATH" ; then
   ln -sv "$BUILD_DIR" "$BUILD_DIR/gopath/src/$GO_IMPORT_PATH"
 fi
 
-if ! test -f $CACHE_DIR/.profile.d/homebin.sh ]] ; then
+if ! test -f $CACHE_DIR/.profile.d/homebin.sh ; then
   echo 'PATH=$PATH:$HOME/gopath/bin:$HOME/build/linux/amd64:$HOME/bin' > \
     $CACHE_DIR/.profile.d/homebin.sh
 fi
