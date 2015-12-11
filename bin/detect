@@ -2,7 +2,7 @@
 # bin/detect <build-dir>
 set -e
 
-if test -d "$1/cmd/gcloud-cleanup"
-then echo "gcloud-cleanup"
+if test -d "$1/Makefile"
+then echo "makey-go"
 else echo no; exit 1
 fi

@@ -44,8 +44,11 @@ fi
 echo "-----> Syncing cache dir to build dir... "
 rsync -az $CACHE_DIR/ $BUILD_DIR/ | indent
 
-echo "-----> Fetching deps"
+echo "-----> Making prereqs"
+make prereqs 2>&1 | indent
+
+echo "-----> Making deps"
 make deps 2>&1 | indent
 
-echo "-----> Building"
+echo "-----> Making cross build"
 make crossbuild 2>&1 | indent
