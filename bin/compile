@@ -22,37 +22,42 @@ CACHE_DIR=$(cd "$2/" && pwd)
 ENV_DIR=$(cd "$3/" && pwd)
 BUILDPACK_DIR=$(dirname $(dirname $0))
 
-PATH="$BUILD_DIR/build/linux/amd64:$PATH:$BUILD_DIR/bin:$CACHE_DIR/bin"
-
-mkdir -p "$BUILD_DIR/bin" "$CACHE_DIR/bin"
-
-if ! command -v gimme ; then
-  curl \
-    -sSL \
-    -o "$CACHE_DIR/bin/gimme" \
-    https://raw.githubusercontent.com/travis-ci/gimme/master/gimme
-  chmod +x "$CACHE_DIR/bin/gimme"
-fi
-
 GO_IMPORT_PATH=main
 
-for var in GO_VERSION GO_IMPORT_PATH GO15VENDOREXPERIMENT ; do
+for var in GO_VERSION GO_IMPORT_PATH GO15VENDOREXPERIMENT GO_BINARY_URL ; do
   if test -f "$ENV_DIR/$var" ; then
-    eval "$var='$(cat $ENV_DIR/$var)'"
+    eval "$var=\"$(cat $ENV_DIR/$var)\""
   fi
 done
 
-eval "$(HOME=$BUILD_DIR gimme ${GO_VERSION:-1.5.1})" 2>&1 | indent
-export GOROOT="$BUILD_DIR/.gimme/versions/go${GO_VERSION:-1.5.1}.linux.amd64"
-export GOPATH="$BUILD_DIR/gopath"
-export PATH="$GOROOT/bin:$BUILD_DIR/gopath/bin:$PATH"
+PATH="$BUILD_DIR/build/linux/amd64:$PATH:$BUILD_DIR/bin:$CACHE_DIR/bin"
 
+mkdir -p "$BUILD_DIR/bin" "$CACHE_DIR/bin"
 cd "$BUILD_DIR"
 
-mkdir -p "$BUILD_DIR/gopath/src/$(dirname $GO_IMPORT_PATH)"
+if [[ -n "$GO_BINARY_URL" ]] ; then
+  NEEDS_MAKING=no
+  curl -sSLf "$GO_BINARY_URL" | tar -xjvf - | indent
+else
+  NEEDS_MAKING=yes
+  if ! command -v gimme ; then
+    curl \
+      -sSL \
+      -o "$CACHE_DIR/bin/gimme" \
+      https://raw.githubusercontent.com/travis-ci/gimme/master/gimme
+    chmod +x "$CACHE_DIR/bin/gimme"
+  fi
 
-if ! test -e "$BUILD_DIR/gopath/src/$GO_IMPORT_PATH" ; then
-  ln -sv "$BUILD_DIR" "$BUILD_DIR/gopath/src/$GO_IMPORT_PATH" | indent
+  eval "$(HOME=$BUILD_DIR gimme ${GO_VERSION:-1.5.1})" 2>&1 | indent
+  export GOROOT="$BUILD_DIR/.gimme/versions/go${GO_VERSION:-1.5.1}.linux.amd64"
+  export GOPATH="$BUILD_DIR/gopath"
+  export PATH="$GOROOT/bin:$BUILD_DIR/gopath/bin:$PATH"
+
+  mkdir -p "$BUILD_DIR/gopath/src/$(dirname $GO_IMPORT_PATH)"
+
+  if ! test -e "$BUILD_DIR/gopath/src/$GO_IMPORT_PATH" ; then
+    ln -sv "$BUILD_DIR" "$BUILD_DIR/gopath/src/$GO_IMPORT_PATH" | indent
+  fi
 fi
 
 if ! test -f $CACHE_DIR/.profile.d/homebin.sh ; then
@@ -63,12 +68,16 @@ fi
 echo "-----> Syncing cache dir to build dir... "
 rsync -az $CACHE_DIR/ $BUILD_DIR/ | indent
 
-echo "-----> Making prereqs"
-make prereqs 2>&1 | indent
+if [[ $NEEDS_MAKING = yes ]] ; then
+  echo "-----> Making prereqs"
+  make prereqs 2>&1 | indent
 
-echo "-----> Making deps"
-make deps 2>&1 | indent
+  echo "-----> Making deps"
+  make deps 2>&1 | indent
 
-echo -en "-----> Making build with "
-go version
-make build 2>&1 | indent
+  echo -en "-----> Making build with "
+  go version
+  make build 2>&1 | indent
+else
+  echo "-----> No making needed"
+fi
