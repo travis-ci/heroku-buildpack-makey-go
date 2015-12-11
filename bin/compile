@@ -37,7 +37,8 @@ fi
 eval "$(gimme 1.5.1)" 2>&1 | indent
 PATH="$GOROOT/bin:$PATH"
 
-env | grep GO | indent
+echo "-----> Dumping environment"
+env | indent
 go env | indent
 
 cd "$BUILD_DIR"
