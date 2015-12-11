@@ -52,7 +52,7 @@ cd "$BUILD_DIR"
 mkdir -p "$BUILD_DIR/gopath/src/$(dirname $GO_IMPORT_PATH)"
 
 if ! test -e "$BUILD_DIR/gopath/src/$GO_IMPORT_PATH" ; then
-  ln -sv "$BUILD_DIR" "$BUILD_DIR/gopath/src/$GO_IMPORT_PATH"
+  ln -sv "$BUILD_DIR" "$BUILD_DIR/gopath/src/$GO_IMPORT_PATH" | indent
 fi
 
 if ! test -f $CACHE_DIR/.profile.d/homebin.sh ; then
