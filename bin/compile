@@ -69,5 +69,6 @@ make prereqs 2>&1 | indent
 echo "-----> Making deps"
 make deps 2>&1 | indent
 
-echo "-----> Making build"
+echo -en "-----> Making build with "
+go version
 make build 2>&1 | indent
