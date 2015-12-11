@@ -34,11 +34,10 @@ if ! command -v gimme ; then
   chmod +x "$CACHE_DIR/bin/gimme"
 fi
 
-eval "$(gimme 1.5.1)" 2>&1 | indent
-PATH="$GOROOT/bin:$PATH"
+eval "$(HOME=$BUILD_DIR gimme 1.5.1)" 2>&1 | indent
+PATH="$BUILD_DIR/.gimme/versions/go1.5.1.linux.amd64/bin:$PATH"
 
-echo "-----> Dumping environment"
-env | indent
+echo "-----> Dumping go environment"
 go env | indent
 
 cd "$BUILD_DIR"
