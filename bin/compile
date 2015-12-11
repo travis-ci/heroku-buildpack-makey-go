@@ -37,7 +37,10 @@ cd "$BUILD_DIR"
 
 if [[ -n "$GO_BINARY_URL" ]] ; then
   NEEDS_MAKING=no
-  curl -sSLf "$GO_BINARY_URL" | tar -xjvf - | indent
+  echo "-----> Downloading $GO_BINARY_URL"
+  curl -sSLf -o /tmp/binary.tar.bz2 "$GO_BINARY_URL" | indent
+  echo "-----> Expanding /tmp/binary.tar.bz2"
+  tar -xjvf /tmp/binary.tar.bz2 | indent
 else
   NEEDS_MAKING=yes
   if ! command -v gimme ; then
