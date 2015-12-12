@@ -64,7 +64,8 @@ make -pn 2>&1 | if grep -q '^heroku:' ; then
   fi
 
   if test -f $CACHE_DIR/.gimme.tar.bz2 ; then
-    tar -xjvf $CACHE_DIR/.gimme.tar.bz2 -C $CACHE_DIR 2>&1 | indent
+    echo "-----> Expanding $CACHE_DIR/.gimme.tar.bz2"
+    tar -xjf $CACHE_DIR/.gimme.tar.bz2 -C $CACHE_DIR 2>&1 | indent
   fi
 
   echo "-----> Installing go $GO_VERSION"
@@ -110,7 +111,8 @@ fi
 
 if test -d $CACHE_DIR/.gimme ; then
   pushd $CACHE_DIR &>/dev/null
-  tar -cjvf .gimme.tar.bz2 .gimme 2>&1 | indent
+  echo "-----> Compressing $CACHE_DIR/.gimme"
+  tar -cjf .gimme.tar.bz2 .gimme 2>&1 | indent
   rm -rf .gimme 2>&1 | indent
   popd &>/dev/null
 fi
