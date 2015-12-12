@@ -66,14 +66,13 @@ make -pn 2>&1 | if grep -q '^heroku:' ; then
   echo "-----> Installing go $GO_VERSION"
   eval "$(HOME=$CACHE_DIR $CACHE_DIR/bin/gimme $GO_VERSION)" 2>&1 | indent
 
-  GOPATH_LINK_DEST=$CACHE_DIR/gopath/src/$GO_IMPORT_PATH
+  GOPATH_DEST=$CACHE_DIR/gopath/src/$GO_IMPORT_PATH
 
-  echo "-----> Linking $BUILD_DIR to $GOPATH_LINK_DEST"
-  mkdir -p $(dirname $GOPATH_LINK_DEST)
-  rm -vf $GOPATH_LINK_DEST 2>&1 | indent
-  pushd $(dirname $GOPATH_LINK_DEST) &>/dev/null
-  ln -sv $BUILD_DIR $PWD/$(basename $GOPATH_LINK_DEST) 2>&1 | indent
-  popd &>/dev/null
+  mkdir -p $(dirname $GOPATH_DEST)
+  rm -Rvf $GOPATH_DEST 2>&1 | indent
+
+  echo "-----> Copying $BUILD_DIR to $GOPATH_DEST"
+  cp -vR $BUILD_DIR $GOPATH_DEST 2>&1 | indent
 
   echo "-----> Setting up GOROOT, GOPATH, and PATH"
   export GOROOT=$CACHE_DIR/.gimme/versions/go$GO_VERSION.linux.amd64
