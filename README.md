@@ -4,7 +4,7 @@ Heroku buildpack for (some) Go projects (maybe).
 
 ## how?
 
-If a `heroku` target is defined, run it.
+If a `heroku` target is detected, run `make heroku`.
 
 Otherwise, attempt to download and expand a bzipped tarball, the URL
 for which may either be explicitly given as `GO_BINARY_URL` or will
