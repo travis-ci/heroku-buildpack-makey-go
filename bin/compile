@@ -63,6 +63,10 @@ make -pn 2>&1 | if grep -q '^heroku:' ; then
     chmod +x $CACHE_DIR/bin/gimme
   fi
 
+  if test -f $CACHE_DIR/.gimme.tar.bz2 ; then
+    tar -xjvf $CACHE_DIR/.gimme.tar.bz2 -C $CACHE_DIR 2>&1 | indent
+  fi
+
   echo "-----> Installing go $GO_VERSION"
   eval "$(HOME=$CACHE_DIR $CACHE_DIR/bin/gimme $GO_VERSION)" 2>&1 | indent
 
@@ -102,6 +106,13 @@ if test -n "$GO_BINARY_PATH_DIR" ; then
     tee $CACHE_DIR/.profile.d/go-binary-path.sh | indent
 else
   rm -vf $CACHE_DIR/.profile.d/go-binary-path.sh 2>&1 | indent
+fi
+
+if test -d $CACHE_DIR/.gimme ; then
+  pushd $CACHE_DIR &>/dev/null
+  tar -cjvf .gimme.tar.bz2 .gimme 2>&1 | indent
+  rm -rf .gimme 2>&1 | indent
+  popd &>/dev/null
 fi
 
 echo "-----> Syncing cache dir to build dir... "
