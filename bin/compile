@@ -51,9 +51,28 @@ if ! test -n "$GO_BINARY_URL" ; then
 fi
 
 mkdir -p "$BUILD_DIR/bin" "$CACHE_DIR/bin" "$CACHE_DIR/.profile.d"
+
 cd "$BUILD_DIR"
 
 make -pn 2>&1 | if grep -q '^heroku:' ; then
+  if ! test -f $CACHE_DIR/bin/gimme ; then
+    echo "-----> Downloading gimme"
+    curl -SSL -o $CACHE_DIR/bin/gimme \
+      https://raw.githubusercontent.com/travis-ci/gimme/master/gimme
+  fi
+
+  echo "-----> Installing go $GO_VERSION"
+  eval "$(HOME=$CACHE_DIR $CACHE_DIR/bin/gimme $GO_VERSION)" 2>&1 | indent
+
+  echo "-----> Setting up GOPATH"
+  GOPATH_LINK_DEST=$CACHE_DIR/gopath/src/$GO_IMPORT_PATH
+  mkdir -p $(dirname $GOPATH_LINK_DEST)
+  rm -vf $GOPATH_LINK_DEST 2>&1 | indent
+  ln -sv $BUILD_DIR $GOPATH_LINK_DEST 2>&1 | indent
+
+  export GOROOT=$CACHE_DIR/.gimme/versions/go$GO_VERSION.linux.amd64
+  export GOPATH=$CACHE_DIR/gopath
+
   echo "-----> Running make heroku"
   make heroku 2>&1 | indent
 else
