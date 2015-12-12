@@ -72,7 +72,9 @@ make -pn 2>&1 | if grep -q '^heroku:' ; then
   echo "-----> Linking $BUILD_DIR to $GOPATH_LINK_DEST"
   mkdir -p $(dirname $GOPATH_LINK_DEST)
   rm -vf $GOPATH_LINK_DEST 2>&1 | indent
-  ln -sv $BUILD_DIR $GOPATH_LINK_DEST 2>&1 | indent
+  pushd $(dirname $GOPATH_LINK_DEST) &>/dev/null
+  ln -sv $BUILD_DIR $PWD/$(basename $GOPATH_LINK_DEST) 2>&1 | indent
+  popd &>/dev/null
 
   echo "-----> Setting up GOROOT, GOPATH, and PATH"
   export GOROOT=$CACHE_DIR/.gimme/versions/go$GO_VERSION.linux.amd64
