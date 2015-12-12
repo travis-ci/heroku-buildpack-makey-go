@@ -23,6 +23,7 @@ ENV_DIR=$(cd "$3/" && pwd)
 BUILDPACK_DIR=$(dirname $(dirname $0))
 
 GO_IMPORT_PATH='github.com/replace-me/example'
+GO_VERSION='1.5.1'
 
 IMPORTABLE_VARS=(
   GO15VENDOREXPERIMENT
