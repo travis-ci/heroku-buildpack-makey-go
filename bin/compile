@@ -78,8 +78,11 @@ make -pn 2>&1 | if grep -q '^heroku:' ; then
 
   echo "-----> Setting up GOROOT, GOPATH, and PATH"
   export GOROOT=$CACHE_DIR/.gimme/versions/go$GO_VERSION.linux.amd64
+  echo "       export GOROOT=\"$GOROOT\""
   export GOPATH=$CACHE_DIR/gopath
+  echo "       export GOPATH=\"$GOPATH\""
   export PATH=$GOROOT/bin:$CACHE_DIR/gopath/bin:$PATH
+  echo "       export PATH=\"$PATH\""
 
   echo "-----> Running make heroku"
   make heroku 2>&1 | indent
