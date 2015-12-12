@@ -89,6 +89,14 @@ make -pn 2>&1 | if grep -q '^heroku:' ; then
 
   echo "-----> Running make heroku"
   make heroku 2>&1 | indent
+
+  if test -d $CACHE_DIR/.gimme ; then
+    pushd $CACHE_DIR &>/dev/null
+    echo "-----> Compressing $CACHE_DIR/.gimme"
+    tar -cjf .gimme.tar.bz2 .gimme 2>&1 | indent
+    rm -rf .gimme 2>&1 | indent
+    popd &>/dev/null
+  fi
 else
   DEST_TARBALL=$(mktemp /tmp/binary-XXXXX.tar.bz2)
   echo "-----> Downloading $GO_BINARY_URL"
@@ -107,14 +115,6 @@ if test -n "$GO_BINARY_PATH_DIR" ; then
     tee $CACHE_DIR/.profile.d/go-binary-path.sh | indent
 else
   rm -vf $CACHE_DIR/.profile.d/go-binary-path.sh 2>&1 | indent
-fi
-
-if test -d $CACHE_DIR/.gimme ; then
-  pushd $CACHE_DIR &>/dev/null
-  echo "-----> Compressing $CACHE_DIR/.gimme"
-  tar -cjf .gimme.tar.bz2 .gimme 2>&1 | indent
-  rm -rf .gimme 2>&1 | indent
-  popd &>/dev/null
 fi
 
 echo "-----> Syncing cache dir to build dir... "
