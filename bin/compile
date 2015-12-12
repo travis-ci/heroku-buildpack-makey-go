@@ -35,7 +35,7 @@ IMPORTABLE_VARS=(
 
 for var in "${IMPORTABLE_VARS[@]}" ; do
   if test -f "$ENV_DIR/$var" ; then
-    eval "$var=\"$(cat $ENV_DIR/$var)\""
+    eval "export $var=\"$(cat $ENV_DIR/$var)\""
   fi
 done
 
@@ -65,7 +65,6 @@ make -pn 2>&1 | if grep -q '^heroku:' ; then
 
   echo "-----> Installing go $GO_VERSION"
   eval "$(HOME=$CACHE_DIR $CACHE_DIR/bin/gimme $GO_VERSION)" 2>&1 | indent
-
 
   GOPATH_LINK_DEST=$CACHE_DIR/gopath/src/$GO_IMPORT_PATH
 
