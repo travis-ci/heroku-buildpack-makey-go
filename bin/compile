@@ -22,9 +22,17 @@ CACHE_DIR=$(cd "$2/" && pwd)
 ENV_DIR=$(cd "$3/" && pwd)
 BUILDPACK_DIR=$(dirname $(dirname $0))
 
-GO_IMPORT_PATH=main
+GO_IMPORT_PATH='github.com/replace-me/example'
 
-for var in GO_VERSION GO_IMPORT_PATH GO15VENDOREXPERIMENT GO_BINARY_URL ; do
+IMPORTABLE_VARS=(
+  GO15VENDOREXPERIMENT
+  GO_BINARY_PATH_DIR
+  GO_BINARY_URL
+  GO_IMPORT_PATH
+  GO_VERSION
+)
+
+for var in "${IMPORTABLE_VARS[@]}" ; do
   if test -f "$ENV_DIR/$var" ; then
     eval "$var=\"$(cat $ENV_DIR/$var)\""
   fi
@@ -32,35 +40,28 @@ done
 
 PATH="$BUILD_DIR/build/linux/amd64:$PATH:$BUILD_DIR/bin:$CACHE_DIR/bin"
 
+if ! test -n "$GO_BINARY_BUCKET" ; then
+  GITHUB_SLUG=${GO_IMPORT_PATH/github.com\//}
+  GO_BINARY_BUCKET="${GITHUB_SLUG//\//-}-artifacts"
+fi
+
+if ! test -n "$GO_BINARY_URL" ; then
+  S3_PATH="$GO_BINARY_BUCKET${GO_IMPORT_PATH/github.com/}/$SOURCE_VERSION/build.tar.bz2"
+  GO_BINARY_URL="https://s3.amazonaws.com/$S3_PATH"
+fi
+
 mkdir -p "$BUILD_DIR/bin" "$CACHE_DIR/bin"
 cd "$BUILD_DIR"
 
-if [[ -n "$GO_BINARY_URL" ]] ; then
-  NEEDS_MAKING=no
-  echo "-----> Downloading $GO_BINARY_URL"
-  curl -sSLf -o /tmp/binary.tar.bz2 "$GO_BINARY_URL" | indent
-  echo "-----> Expanding /tmp/binary.tar.bz2"
-  tar -xjvf /tmp/binary.tar.bz2 | indent
+make -pn 2>&1 | if grep -q '^heroku:' ; then
+  echo "-----> Running make heroku"
+  make heroku 2>&1 | indent
 else
-  NEEDS_MAKING=yes
-  if ! command -v gimme ; then
-    curl \
-      -sSL \
-      -o "$CACHE_DIR/bin/gimme" \
-      https://raw.githubusercontent.com/travis-ci/gimme/master/gimme
-    chmod +x "$CACHE_DIR/bin/gimme"
-  fi
-
-  eval "$(HOME=$BUILD_DIR gimme ${GO_VERSION:-1.5.1})" 2>&1 | indent
-  export GOROOT="$BUILD_DIR/.gimme/versions/go${GO_VERSION:-1.5.1}.linux.amd64"
-  export GOPATH="$BUILD_DIR/gopath"
-  export PATH="$GOROOT/bin:$BUILD_DIR/gopath/bin:$PATH"
-
-  mkdir -p "$BUILD_DIR/gopath/src/$(dirname $GO_IMPORT_PATH)"
-
-  if ! test -e "$BUILD_DIR/gopath/src/$GO_IMPORT_PATH" ; then
-    ln -sv "$BUILD_DIR" "$BUILD_DIR/gopath/src/$GO_IMPORT_PATH" | indent
-  fi
+  DEST_TARBALL=$(mktemp /tmp/binary-XXXXX.tar.bz2)
+  echo "-----> Downloading $GO_BINARY_URL"
+  curl -sSLf -o "$DEST_TARBALL" "$GO_BINARY_URL" | indent
+  echo "-----> Expanding $(basename $GO_BINARY_URL)"
+  tar -xjvf "$DEST_TARBALL" | indent
 fi
 
 if ! test -f $CACHE_DIR/.profile.d/homebin.sh ; then
@@ -68,19 +69,12 @@ if ! test -f $CACHE_DIR/.profile.d/homebin.sh ; then
     $CACHE_DIR/.profile.d/homebin.sh
 fi
 
-echo "-----> Syncing cache dir to build dir... "
-rsync -az $CACHE_DIR/ $BUILD_DIR/ | indent
-
-if [[ $NEEDS_MAKING = yes ]] ; then
-  echo "-----> Making prereqs"
-  make prereqs 2>&1 | indent
-
-  echo "-----> Making deps"
-  make deps 2>&1 | indent
-
-  echo -en "-----> Making build with "
-  go version
-  make build 2>&1 | indent
+if test -n "$GO_BINARY_PATH_DIR" ; then
+  echo "PATH=$GO_BINARY_PATH_DIR:\$PATH" | \
+    tee $CACHE_DIR/.profile.d/go-binary-path.sh | indent
 else
-  echo "-----> No making needed"
+  rm -vf $CACHE_DIR/.profile.d/go-binary-path.sh 2>&1 | indent
 fi
+
+echo "-----> Syncing cache dir to build dir... "
+rsync -avz $CACHE_DIR/ $BUILD_DIR/ 2>&1 | indent
