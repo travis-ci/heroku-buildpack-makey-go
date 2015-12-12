@@ -50,7 +50,7 @@ if ! test -n "$GO_BINARY_URL" ; then
   GO_BINARY_URL="https://s3.amazonaws.com/$S3_PATH"
 fi
 
-mkdir -p "$BUILD_DIR/bin" "$CACHE_DIR/bin"
+mkdir -p "$BUILD_DIR/bin" "$CACHE_DIR/bin" "$CACHE_DIR/.profile.d"
 cd "$BUILD_DIR"
 
 make -pn 2>&1 | if grep -q '^heroku:' ; then
