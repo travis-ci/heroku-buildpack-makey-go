@@ -1,3 +1,2 @@
 .*env
 build/
-heroku-buildpack-testrunner/
