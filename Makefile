@@ -1,4 +1,4 @@
-BATS ?= bats
+BATS ?= bats -p
 ECHO ?= echo
 
 .PHONY: test
