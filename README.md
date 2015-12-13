@@ -20,5 +20,6 @@ becomes:
 GO_BINARY_URL="https://s3.amazonaws.com/serious-company-whizbang-artifacts/serious-company/whizbang/$SOURCE_VERSION/build.tar.bz2"
 ```
 
-**NOTE**: The `$SOURCE_VERSION` variable is present in the heroku env
-at slug compile time.
+**NOTE**: The [`$SOURCE_VERSION`
+variable](https://devcenter.heroku.com/articles/buildpack-api#bin-compile-summary)
+is present in the heroku env at slug compile time.
