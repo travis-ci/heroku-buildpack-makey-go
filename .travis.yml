@@ -1,0 +1,13 @@
+language: bash
+
+sudo: required
+
+dist: trusty
+
+group: dev
+
+env:
+  global:
+  - BATS=bats
+
+script: make

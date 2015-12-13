@@ -2,7 +2,9 @@
 # bin/detect <build-dir>
 set -e
 
-if test -f "$1/Makefile"
-then echo "makey-go"
-else echo no; exit 1
+if test -f "$1/Makefile" ; then
+  echo makey-go
+else
+  echo no
+  exit 1
 fi

@@ -1,121 +1,176 @@
 #!/bin/bash
 # usage: bin/compile <build-dir> <cache-dir> <env-dir>
 
-set -eo pipefail
+set -o errexit
 
-indent() {
-  # if an arg is given it's a flag indicating we shouldn't indent the first
-  # line, so use :+ to tell SED accordingly if that parameter is set, otherwise
-  # null string for no range selector prefix (it selects from line 2 onwards and
-  # then every 1st line, meaning all lines)
+main() {
+  set -o pipefail
+  mkdir -p "$1" "$2" "$3"
+
+  __debug 'defining variable defaults'
+
+  BUILD_DIR=$(cd "$1/" && pwd)
+  CACHE_DIR=$(cd "$2/" && pwd)
+  ENV_DIR=$(cd "$3/" && pwd)
+  PATH="$BUILD_DIR/build/linux/amd64:$PATH:$BUILD_DIR/bin:$CACHE_DIR/bin"
+
+  GO15VENDOREXPERIMENT=
+  GO_BINARY_PATH_DIR=
+  GO_BINARY_URL=
+  GO_IMPORT_PATH='github.com/replace-me/example'
+  GO_VERSION='1.5.1'
+
+  IMPORTABLE_VARS=(
+    GO15VENDOREXPERIMENT
+    GO_BINARY_PATH_DIR
+    GO_BINARY_URL
+    GO_IMPORT_PATH
+    GO_VERSION
+  )
+
+  __debug "importing variables from $ENV_DIR"
+
+  for var in "${IMPORTABLE_VARS[@]}" ; do
+    if test -f "$ENV_DIR/$var" ; then
+      eval "$var=\"$(cat $ENV_DIR/$var)\""
+    fi
+  done
+
+  export \
+    GO15VENDOREXPERIMENT \
+    GO_BINARY_PATH_DIR \
+    GO_IMPORT_PATH \
+    GO_VERSION
+
+  __debug 'ensuring GO_BINARY_BUCKET is defined'
+
+  if ! test -n "$GO_BINARY_BUCKET" ; then
+    GITHUB_SLUG=${GO_IMPORT_PATH/github.com\//}
+    GO_BINARY_BUCKET="${GITHUB_SLUG//\//-}-artifacts"
+  fi
+
+  __debug 'ensuring GO_BINARY_URL is defined'
+
+  if ! test -n "$GO_BINARY_URL" ; then
+    S3_PATH="$GO_BINARY_BUCKET${GO_IMPORT_PATH/github.com/}/$SOURCE_VERSION/build.tar.bz2"
+    GO_BINARY_URL="${S3_HOST:-https://s3.amazonaws.com}/$S3_PATH"
+  fi
+
+  export GO_BINARY_URL
+
+  mkdir -p "$BUILD_DIR/bin" "$CACHE_DIR/bin" "$CACHE_DIR/.profile.d"
+
+  cd "$BUILD_DIR"
+
+  __debug 'reading make targets'
+
+  MAKE_TARGETS="$(make -pn 2>&1 || true)"
+
+  __debug 'finished reading make targets'
+
+  if [[ $MAKE_TARGETS =~ heroku: ]] ; then
+    __make_heroku
+  else
+    __download_binary
+  fi
+
+  if ! test -f $CACHE_DIR/.profile.d/homebin.sh ; then
+    echo 'PATH=$PATH:$HOME/gopath/bin:$HOME/build/linux/amd64:$HOME/bin' | \
+      tee $CACHE_DIR/.profile.d/homebin.sh 2>&1 | __indent
+  fi
+
+  if test -n "$GO_BINARY_PATH_DIR" ; then
+    echo "PATH=$GO_BINARY_PATH_DIR:\$PATH" | \
+      tee $CACHE_DIR/.profile.d/go-binary-path.sh | __indent
+  else
+    rm -vf $CACHE_DIR/.profile.d/go-binary-path.sh 2>&1 | __indent
+  fi
+
+  __ann 'Syncing cache dir to build dir... '
+  rsync \
+    --exclude '.gimme.tar.bz2' \
+    -avz \
+    $CACHE_DIR/ $BUILD_DIR/ 2>&1 | __indent
+}
+
+__ann() {
+  echo "-----> $*"
+}
+
+__say() {
+  echo "       $*"
+}
+
+__debug() {
+  if [[ -n "$DEBUG" ]] ; then
+    echo "DEBUG> $*"
+  fi
+}
+
+__indent() {
   c="${1:+"2,999"} s/^/       /"
   case $(uname) in
-    Darwin) sed -l "$c";; # mac/bsd sed: -l buffers on line boundaries
-    *)      sed -u "$c";; # unix/gnu sed: -u unbuffered (arbitrary) chunks of data
+    Darwin) sed -l "$c";;
+    *)      sed -u "$c";;
   esac
 }
 
-mkdir -p "$1" "$2" "$3"
-
-BUILD_DIR=$(cd "$1/" && pwd)
-CACHE_DIR=$(cd "$2/" && pwd)
-ENV_DIR=$(cd "$3/" && pwd)
-BUILDPACK_DIR=$(dirname $(dirname $0))
-
-GO_IMPORT_PATH='github.com/replace-me/example'
-GO_VERSION='1.5.1'
-
-IMPORTABLE_VARS=(
-  GO15VENDOREXPERIMENT
-  GO_BINARY_PATH_DIR
-  GO_BINARY_URL
-  GO_IMPORT_PATH
-  GO_VERSION
-)
-
-for var in "${IMPORTABLE_VARS[@]}" ; do
-  if test -f "$ENV_DIR/$var" ; then
-    eval "export $var=\"$(cat $ENV_DIR/$var)\""
-  fi
-done
-
-PATH="$BUILD_DIR/build/linux/amd64:$PATH:$BUILD_DIR/bin:$CACHE_DIR/bin"
-
-if ! test -n "$GO_BINARY_BUCKET" ; then
-  GITHUB_SLUG=${GO_IMPORT_PATH/github.com\//}
-  GO_BINARY_BUCKET="${GITHUB_SLUG//\//-}-artifacts"
-fi
-
-if ! test -n "$GO_BINARY_URL" ; then
-  S3_PATH="$GO_BINARY_BUCKET${GO_IMPORT_PATH/github.com/}/$SOURCE_VERSION/build.tar.bz2"
-  GO_BINARY_URL="https://s3.amazonaws.com/$S3_PATH"
-fi
-
-mkdir -p "$BUILD_DIR/bin" "$CACHE_DIR/bin" "$CACHE_DIR/.profile.d"
-
-cd "$BUILD_DIR"
-
-make -pn 2>&1 | if grep -q '^heroku:' ; then
+__make_heroku() {
   if ! test -f $CACHE_DIR/bin/gimme ; then
-    echo "-----> Downloading gimme"
+    __ann 'Downloading gimme'
     curl -sSL -o $CACHE_DIR/bin/gimme \
       https://raw.githubusercontent.com/travis-ci/gimme/master/gimme
     chmod +x $CACHE_DIR/bin/gimme
   fi
 
   if test -f $CACHE_DIR/.gimme.tar.bz2 ; then
-    echo "-----> Expanding $CACHE_DIR/.gimme.tar.bz2"
-    tar -xjf $CACHE_DIR/.gimme.tar.bz2 -C $CACHE_DIR 2>&1 | indent
+    __ann "Expanding $CACHE_DIR/.gimme.tar.bz2"
+    tar -xjf $CACHE_DIR/.gimme.tar.bz2 -C $CACHE_DIR 2>&1 | __indent
   fi
 
-  echo "-----> Installing go $GO_VERSION"
-  eval "$(HOME=$CACHE_DIR $CACHE_DIR/bin/gimme $GO_VERSION)" 2>&1 | indent
+  __ann "Installing go $GO_VERSION"
+  eval "$(HOME=$CACHE_DIR $CACHE_DIR/bin/gimme $GO_VERSION)" 2>&1 | __indent
 
   GOPATH_DEST=$CACHE_DIR/gopath/src/$GO_IMPORT_PATH
 
   mkdir -p $(dirname $GOPATH_DEST)
-  rm -Rvf $GOPATH_DEST 2>&1 | indent
+  rm -Rvf $GOPATH_DEST 2>&1 | __indent
 
-  echo "-----> Copying $BUILD_DIR to $GOPATH_DEST"
-  cp -vR $BUILD_DIR $GOPATH_DEST 2>&1 | indent
+  __ann "Copying $BUILD_DIR to $GOPATH_DEST"
+  cp -vR $BUILD_DIR $GOPATH_DEST 2>&1 | __indent
 
-  echo "-----> Setting up GOROOT, GOPATH, and PATH"
+  __ann 'Setting up GOROOT, GOPATH, and PATH'
+
   export GOROOT=$CACHE_DIR/.gimme/versions/go$GO_VERSION.linux.amd64
-  echo "       export GOROOT=\"$GOROOT\""
-  export GOPATH=$CACHE_DIR/gopath
-  echo "       export GOPATH=\"$GOPATH\""
-  export PATH=$GOROOT/bin:$CACHE_DIR/gopath/bin:$PATH
-  echo "       export PATH=\"$PATH\""
+  __say "export GOROOT=\"$GOROOT\""
 
-  echo "-----> Running make heroku"
-  make heroku 2>&1 | indent
+  export GOPATH=$CACHE_DIR/gopath
+  __say "export GOPATH=\"$GOPATH\""
+
+  export PATH=$GOROOT/bin:$CACHE_DIR/gopath/bin:$PATH
+  __say "export PATH=\"$PATH\""
+
+  __ann 'Running make heroku'
+  make heroku 2>&1 | __indent
 
   if test -d $CACHE_DIR/.gimme ; then
     pushd $CACHE_DIR &>/dev/null
-    echo "-----> Compressing $CACHE_DIR/.gimme"
-    tar -cjf .gimme.tar.bz2 .gimme 2>&1 | indent
-    rm -rf .gimme 2>&1 | indent
+    __ann "Compressing $CACHE_DIR/.gimme"
+    tar -cjf .gimme.tar.bz2 .gimme 2>&1 | __indent
+    rm -rf .gimme 2>&1 | __indent
     popd &>/dev/null
   fi
-else
-  DEST_TARBALL=$(mktemp /tmp/binary-XXXXX.tar.bz2)
-  echo "-----> Downloading $GO_BINARY_URL"
-  curl -sSLf -o "$DEST_TARBALL" "$GO_BINARY_URL" | indent
-  echo "-----> Expanding $(basename $GO_BINARY_URL)"
-  tar -xjvf "$DEST_TARBALL" | indent
-fi
+}
 
-if ! test -f $CACHE_DIR/.profile.d/homebin.sh ; then
-  echo 'PATH=$PATH:$HOME/gopath/bin:$HOME/build/linux/amd64:$HOME/bin' > \
-    $CACHE_DIR/.profile.d/homebin.sh
-fi
+__download_binary() {
+  __debug 'creating tarball download dest'
+  DEST_TARBALL=$(mktemp /tmp/binary.tar.bz2.XXXXX)
 
-if test -n "$GO_BINARY_PATH_DIR" ; then
-  echo "PATH=$GO_BINARY_PATH_DIR:\$PATH" | \
-    tee $CACHE_DIR/.profile.d/go-binary-path.sh | indent
-else
-  rm -vf $CACHE_DIR/.profile.d/go-binary-path.sh 2>&1 | indent
-fi
+  __ann "Downloading $GO_BINARY_URL"
+  curl -sSLf -o "$DEST_TARBALL" "$GO_BINARY_URL" 2>&1 | __indent
 
-echo "-----> Syncing cache dir to build dir... "
-rsync -avz $CACHE_DIR/ $BUILD_DIR/ 2>&1 | indent
+  __ann "Expanding $(basename $GO_BINARY_URL)"
+  tar -xjvf "$DEST_TARBALL" 2>&1 | __indent
+}
+
+main "$@"
