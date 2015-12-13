@@ -5,4 +5,4 @@ ECHO ?= echo
 test:
 	@$(foreach b,\
 		$(wildcard test/*.bats),\
-		$(ECHO) "---> $(BATS) $(b)" && $(BATS) $(b);$(ECHO);)
+		$(ECHO) "---> $(BATS) $(b):" && $(BATS) $(b);$(ECHO);)
