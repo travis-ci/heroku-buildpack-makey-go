@@ -6,9 +6,4 @@ dist: trusty
 
 group: dev
 
-install: bats --version
-
-script:
-- bats test/detect_test.bats
-- bats test/compile_test.bats
-- bats test/release_test.bats
+script: make
