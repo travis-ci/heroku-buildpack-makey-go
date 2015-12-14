@@ -68,7 +68,9 @@ main() {
 
   __debug 'finished reading make targets'
 
-  if [[ $MAKE_TARGETS =~ heroku: ]] ; then
+  if [[ $MAKE_TARGETS =~ heroku-bin: ]] ; then
+    __make_heroku_bin
+  elif [[ $MAKE_TARGETS =~ heroku: ]] ; then
     __make_heroku
   else
     __download_binary
@@ -160,6 +162,11 @@ __make_heroku() {
     rm -rf .gimme 2>&1 | __indent
     popd &>/dev/null
   fi
+}
+
+__make_heroku_bin() {
+  __ann 'Running make heroku-bin'
+  make heroku-bin 2>&1 | __indent
 }
 
 __download_binary() {
