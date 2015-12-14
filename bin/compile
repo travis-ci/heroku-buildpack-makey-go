@@ -52,7 +52,7 @@ main() {
   __debug 'ensuring GO_BINARY_URL is defined'
 
   if ! test -n "$GO_BINARY_URL" ; then
-    S3_PATH="$GO_BINARY_BUCKET${GO_IMPORT_PATH/github.com/}/$SOURCE_VERSION/build.tar.bz2"
+    S3_PATH="$GO_BINARY_BUCKET${GO_IMPORT_PATH/github.com/}/$SOURCE_VERSION/build.tar.gz"
     GO_BINARY_URL="${S3_HOST:-https://s3.amazonaws.com}/$S3_PATH"
   fi
 
@@ -164,13 +164,13 @@ __make_heroku() {
 
 __download_binary() {
   __debug 'creating tarball download dest'
-  DEST_TARBALL=$(mktemp /tmp/binary.tar.bz2.XXXXX)
+  DEST_TARBALL=$(mktemp /tmp/binary.tar.gz.XXXXX)
 
   __ann "Downloading $GO_BINARY_URL"
   curl -sSLf -o "$DEST_TARBALL" "$GO_BINARY_URL" 2>&1 | __indent
 
   __ann "Expanding $(basename $GO_BINARY_URL)"
-  tar -xjvf "$DEST_TARBALL" 2>&1 | __indent
+  tar -xzvf "$DEST_TARBALL" 2>&1 | __indent
 }
 
 main "$@"
