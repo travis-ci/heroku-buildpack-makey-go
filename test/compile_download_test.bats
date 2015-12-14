@@ -15,8 +15,8 @@ setup_download() {
   chmod +x $1/dl/build/linux/amd64/number
 
   pushd $1/dl &>/dev/null
-  tar -cjf \
-    $1/replace-me-example-artifacts/replace-me/example/$SOURCE_VERSION/build.tar.bz2 \
+  tar -czf \
+    $1/replace-me-example-artifacts/replace-me/example/$SOURCE_VERSION/build.tar.gz \
     build
   popd &>/dev/null
 }
@@ -33,7 +33,7 @@ setup_download() {
   [ $status -eq 0 ]
 
   grep -q '^-----> Downloading ' $TMP/output
-  grep -q '^-----> Expanding build.tar.bz2' $TMP/output
+  grep -q '^-----> Expanding build.tar.gz' $TMP/output
 
   [ ! -f $TMP/cache/.gimme.tar.bz2 ]
   [ ! -f $TMP/build/.gimme.tar.bz2 ]
